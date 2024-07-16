@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract BlockchainIntegrationHub is Ownable {
+    struct BlockchainContract {
+        string name;
+        address contractAddress;
+        bool active;
+    }
+
+    mapping(string => address) public blockchainContracts;
+    mapping(address => bool) public isContractActive;
+    string[] public activeContracts;
+
+    // Events
+    event ContractRegistered(string indexed name, address indexed contractAddress);
+    event ContractActivated(address indexed contractAddress);
+    event ContractDeactivated(address indexed contractAddress);
+
+    // Register a new blockchain contract
+    function registerContract(string memory name, address contractAddress) external onlyOwner {
+        require(contractAddress != address(0), "Invalid contract address");
+        require(!isContractActive[contractAddress], "Contract already registered");
+
+        blockchainContracts[name] = contractAddress;
+        isContractActive[contractAddress] = true;
+        activeContracts.push(name);
+
+        emit ContractRegistered(name, contractAddress);
+    }
+
+    // Activate a registered contract
+    function activateContract(string memory name) external onlyOwner {
+        address contractAddress = blockchainContracts[name];
+        require(contractAddress != address(0), "Contract not registered");
+        require(!isContractActive[contractAddress], "Contract already active");
+
+        isContractActive[contractAddress] = true;
+        activeContracts.push(name);
+
+        emit ContractActivated(contractAddress);
+    }
+
+    // Deactivate a registered contract
+    function deactivateContract(string memory name) external onlyOwner {
+        address contractAddress = blockchainContracts[name];
+        require(contractAddress != address(0), "Contract not registered");
+        require(isContractActive[contractAddress], "Contract not active");
+
+        isContractActive[contractAddress] = false;
+
+        // Remove from activeContracts array
+        for (uint256 i = 0; i < activeContracts.length; i++) {
+            if (keccak256(abi.encodePacked(activeContracts[i])) == keccak256(abi.encodePacked(name))) {
+                activeContracts[i] = activeContracts[activeContracts.length - 1];
+                activeContracts.pop();
+                break;
+            }
+        }
+
+        emit ContractDeactivated(contractAddress);
+    }
+
+    // Get active contract count
+    function getActiveContractCount() external view returns (uint256) {
+        return activeContracts.length;
+    }
+
+    // Get active contract by index
+    function getActiveContractByIndex(uint256 index) external view returns (string memory) {
+        require(index < activeContracts.length, "Invalid index");
+        return activeContracts[index];
+    }
+}
